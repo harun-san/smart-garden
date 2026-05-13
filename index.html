@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Garden Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;600&display=swap');
+        
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #10b981; /* Neon green */
+            --accent-hover: #059669;
+            --danger: #ef4444;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+        }
+
+        /* Login Page */
+        #login-section {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: white;
+            box-sizing: border-box;
+            font-family: 'Fira Code', monospace;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+
+        button:hover { background: var(--accent-hover); }
+
+        /* Dashboard */
+        #dashboard-section { display: none; }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 15px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid var(--accent);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        }
+
+        .card h3 {
+            margin: 0 0 10px 0;
+            color: var(--text-muted);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .card .value {
+            font-family: 'Fira Code', monospace;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .toggle-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #334155;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(26px); }
+        
+        #btn-logout { width: auto; padding: 8px 16px; background: var(--danger); }
+        #btn-logout:hover { background: #b91c1c; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Halaman Login -->
+    <div id="login-section">
+        <h2>IOT_GATEWAY_LOGIN</h2>
+        <input type="email" id="email" placeholder="root@admin.com">
+        <input type="password" id="password" placeholder="••••••••">
+        <button onclick="login()">Authenticate</button>
+        <p id="error-msg" style="color: var(--danger); font-size: 14px;"></p>
+    </div>
+
+    <!-- Halaman Dashboard -->
+    <div id="dashboard-section">
+        <div class="header">
+            <h2>> SMART_GARDEN_SYSTEM</h2>
+            <button id="btn-logout" onclick="logout()">Terminate Session</button>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Temp / Humidity</h3>
+                <div class="value"><span id="val-temp">--</span>°C / <span id="val-hum">--</span>%</div>
+            </div>
+            <div class="card" id="card-soil">
+                <h3>Soil Status</h3>
+                <div class="value" id="val-soil">--</div>
+            </div>
+            <div class="card">
+                <h3>System Controls</h3>
+                <div class="toggle-container">
+                    <span>Auto Mode</span>
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-auto" onchange="updateMode()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-container">
+                    <span>Manual Pump</span>
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-pump" onchange="updatePump()">
+                        <span class="slider" id="slider-pump"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- KONFIGURASI SUPABASE ---
+    const SUPABASE_URL = 'https://URL_PROJECT_ANDA.supabase.co';
+    const SUPABASE_KEY = 'MASUKKAN_ANON_PUBLIC_KEY_DISINI';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let sessionActive = false;
+
+    // Cek Sesi saat dimuat
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) showDashboard();
+    });
+
+    async function login() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        
+        if (error) document.getElementById('error-msg').innerText = error.message;
+        else showDashboard();
+    }
+
+    async function logout() {
+        await supabase.auth.signOut();
+        document.getElementById('login-section').style.display = 'block';
+        document.getElementById('dashboard-section').style.display = 'none';
+        sessionActive = false;
+    }
+
+    function showDashboard() {
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('dashboard-section').style.display = 'block';
+        sessionActive = true;
+        fetchData();
+        setInterval(fetchData, 3000); // Polling data setiap 3 detik
+    }
+
+    async function fetchData() {
+        if (!sessionActive) return;
+        const { data, error } = await supabase
+            .from('smart_garden')
+            .select('*')
+            .eq('id', 1)
+            .single();
+
+        if (data) {
+            document.getElementById('val-temp').innerText = data.suhu.toFixed(1);
+            document.getElementById('val-hum').innerText = data.kelembaban.toFixed(0);
+            
+            const soilEl = document.getElementById('val-soil');
+            soilEl.innerText = data.status_tanah;
+            soilEl.style.color = data.status_tanah === 'KERING' ? '#ef4444' : '#10b981';
+
+            document.getElementById('toggle-auto').checked = data.mode_auto;
+            
+            const pumpToggle = document.getElementById('toggle-pump');
+            pumpToggle.checked = data.pompa_on;
+            // Kunci tombol pompa jika mode auto aktif
+            pumpToggle.disabled = data.mode_auto; 
+            document.getElementById('slider-pump').style.opacity = data.mode_auto ? '0.5' : '1';
+        }
+    }
+
+    async function updateMode() {
+        const isAuto = document.getElementById('toggle-auto').checked;
+        await supabase.from('smart_garden').update({ mode_auto: isAuto }).eq('id', 1);
+        fetchData(); // Refresh UI langsung
+    }
+
+    async function updatePump() {
+        const isPumpOn = document.getElementById('toggle-pump').checked;
+        await supabase.from('smart_garden').update({ pompa_on: isPumpOn }).eq('id', 1);
+    }
+</script>
+</body>
+</html>
