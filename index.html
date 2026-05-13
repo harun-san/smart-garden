@@ -208,77 +208,86 @@
 
 <script>
     // --- KONFIGURASI SUPABASE ---
-    const SUPABASE_URL = 'https://jwqdfmkuyvbvbjigslmr.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3cWRmbWt1eXZidmJqaWdzbG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MzI4MDksImV4cCI6MjA5NDIwODgwOX0.ZJzc4wUfGlCMygfvoejLIFecspeUyfRx-smmxfMc-lY';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL = 'https://jwqdfmkuyvbvbjigslmr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3cWRmbWt1eXZidmJqaWdzbG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MzI4MDksImV4cCI6MjA5NDIwODgwOX0.ZJzc4wUfGlCMygfvoejLIFecspeUyfRx-smmxfMc-lY';
 
-    let sessionActive = false;
+// PERUBAHAN: Ubah nama variabel menjadi "client" agar tidak bentrok
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Cek Sesi saat dimuat
-    supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) showDashboard();
-    });
+let sessionActive = false;
 
-    async function login() {
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+// Cek Sesi saat dimuat
+client.auth.getSession().then(({ data: { session } }) => {
+    if (session) showDashboard();
+});
+
+async function login() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    
+    // PERUBAHAN: Gunakan "client" untuk memanggil fungsi auth
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
+    
+    if (error) {
+        document.getElementById('error-msg').innerText = error.message;
+    } else {
+        showDashboard();
+    }
+}
+
+async function logout() {
+    await client.auth.signOut();
+    document.getElementById('login-section').style.display = 'block';
+    document.getElementById('dashboard-section').style.display = 'none';
+    sessionActive = false;
+}
+
+function showDashboard() {
+    document.getElementById('login-section').style.display = 'none';
+    document.getElementById('dashboard-section').style.display = 'block';
+    sessionActive = true;
+    fetchData();
+    setInterval(fetchData, 3000); // Polling data setiap 3 detik
+}
+
+async function fetchData() {
+    if (!sessionActive) return;
+    
+    // PERUBAHAN: Gunakan "client" untuk memanggil database
+    const { data, error } = await client
+        .from('smart_garden')
+        .select('*')
+        .eq('id', 1)
+        .single();
+
+    if (data) {
+        document.getElementById('val-temp').innerText = data.suhu.toFixed(1);
+        document.getElementById('val-hum').innerText = data.kelembaban.toFixed(0);
         
-        if (error) document.getElementById('error-msg').innerText = error.message;
-        else showDashboard();
+        const soilEl = document.getElementById('val-soil');
+        soilEl.innerText = data.status_tanah;
+        soilEl.style.color = data.status_tanah === 'KERING' ? '#ef4444' : '#10b981';
+
+        document.getElementById('toggle-auto').checked = data.mode_auto;
+        
+        const pumpToggle = document.getElementById('toggle-pump');
+        pumpToggle.checked = data.pompa_on;
+        // Kunci tombol pompa jika mode auto aktif
+        pumpToggle.disabled = data.mode_auto; 
+        document.getElementById('slider-pump').style.opacity = data.mode_auto ? '0.5' : '1';
     }
+}
 
-    async function logout() {
-        await supabase.auth.signOut();
-        document.getElementById('login-section').style.display = 'block';
-        document.getElementById('dashboard-section').style.display = 'none';
-        sessionActive = false;
-    }
+async function updateMode() {
+    const isAuto = document.getElementById('toggle-auto').checked;
+    await client.from('smart_garden').update({ mode_auto: isAuto }).eq('id', 1);
+    fetchData(); // Refresh UI langsung
+}
 
-    function showDashboard() {
-        document.getElementById('login-section').style.display = 'none';
-        document.getElementById('dashboard-section').style.display = 'block';
-        sessionActive = true;
-        fetchData();
-        setInterval(fetchData, 3000); // Polling data setiap 3 detik
-    }
-
-    async function fetchData() {
-        if (!sessionActive) return;
-        const { data, error } = await supabase
-            .from('smart_garden')
-            .select('*')
-            .eq('id', 1)
-            .single();
-
-        if (data) {
-            document.getElementById('val-temp').innerText = data.suhu.toFixed(1);
-            document.getElementById('val-hum').innerText = data.kelembaban.toFixed(0);
-            
-            const soilEl = document.getElementById('val-soil');
-            soilEl.innerText = data.status_tanah;
-            soilEl.style.color = data.status_tanah === 'KERING' ? '#ef4444' : '#10b981';
-
-            document.getElementById('toggle-auto').checked = data.mode_auto;
-            
-            const pumpToggle = document.getElementById('toggle-pump');
-            pumpToggle.checked = data.pompa_on;
-            // Kunci tombol pompa jika mode auto aktif
-            pumpToggle.disabled = data.mode_auto; 
-            document.getElementById('slider-pump').style.opacity = data.mode_auto ? '0.5' : '1';
-        }
-    }
-
-    async function updateMode() {
-        const isAuto = document.getElementById('toggle-auto').checked;
-        await supabase.from('smart_garden').update({ mode_auto: isAuto }).eq('id', 1);
-        fetchData(); // Refresh UI langsung
-    }
-
-    async function updatePump() {
-        const isPumpOn = document.getElementById('toggle-pump').checked;
-        await supabase.from('smart_garden').update({ pompa_on: isPumpOn }).eq('id', 1);
-    }
+async function updatePump() {
+    const isPumpOn = document.getElementById('toggle-pump').checked;
+    await client.from('smart_garden').update({ pompa_on: isPumpOn }).eq('id', 1);
+}
 </script>
 </body>
 </html>
