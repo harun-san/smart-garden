@@ -33,6 +33,7 @@
             width: 100%;
             max-width: 800px;
             padding: 20px;
+            box-sizing: border-box; /* Mencegah overflow karena padding */
         }
 
         /* Login Page */
@@ -44,6 +45,13 @@
             max-width: 400px;
             margin: 0 auto;
             text-align: center;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        #login-section h2 {
+            font-size: 24px;
+            margin-top: 0;
         }
 
         input {
@@ -85,9 +93,14 @@
             padding-bottom: 15px;
         }
 
+        .header h2 {
+            margin: 0;
+            font-size: 22px;
+        }
+
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 20px;
         }
 
@@ -111,6 +124,7 @@
             font-family: 'Fira Code', monospace;
             font-size: 28px;
             font-weight: bold;
+            word-wrap: break-word; /* Mencegah teks keluar batas card */
         }
 
         .toggle-container {
@@ -153,23 +167,46 @@
         input:checked + .slider { background-color: var(--accent); }
         input:checked + .slider:before { transform: translateX(26px); }
         
-        #btn-logout { width: auto; padding: 8px 16px; background: var(--danger); }
+        #btn-logout { width: auto; padding: 8px 16px; background: var(--danger); margin: 0; }
         #btn-logout:hover { background: #b91c1c; }
+
+        /* --- RESPONSIVE CSS (MEDIA QUERIES) --- */
+        @media (max-width: 600px) {
+            .header {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .header h2 {
+                font-size: 18px;
+            }
+
+            .grid {
+                grid-template-columns: 1fr; /* Memaksa card turun ke bawah di HP */
+            }
+
+            #login-section {
+                padding: 30px 20px;
+            }
+
+            .card .value {
+                font-size: 24px;
+            }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- Halaman Login -->
     <div id="login-section">
         <h2>IOT_GATEWAY_LOGIN</h2>
         <input type="email" id="email" placeholder="root@admin.com">
         <input type="password" id="password" placeholder="••••••••">
         <button onclick="login()">Authenticate</button>
-        <p id="error-msg" style="color: var(--danger); font-size: 14px;"></p>
+        <p id="error-msg" style="color: var(--danger); font-size: 14px; margin-top: 10px;"></p>
     </div>
 
-    <!-- Halaman Dashboard -->
     <div id="dashboard-section">
         <div class="header">
             <h2>> SMART_GARDEN_SYSTEM</h2>
@@ -211,7 +248,6 @@
 const SUPABASE_URL = 'https://jwqdfmkuyvbvbjigslmr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp3cWRmbWt1eXZidmJqaWdzbG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MzI4MDksImV4cCI6MjA5NDIwODgwOX0.ZJzc4wUfGlCMygfvoejLIFecspeUyfRx-smmxfMc-lY';
 
-// PERUBAHAN: Ubah nama variabel menjadi "client" agar tidak bentrok
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let sessionActive = false;
@@ -225,12 +261,12 @@ async function login() {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     
-    // PERUBAHAN: Gunakan "client" untuk memanggil fungsi auth
     const { data, error } = await client.auth.signInWithPassword({ email, password });
     
     if (error) {
         document.getElementById('error-msg').innerText = error.message;
     } else {
+        document.getElementById('error-msg').innerText = ''; // Reset pesan error
         showDashboard();
     }
 }
@@ -253,7 +289,6 @@ function showDashboard() {
 async function fetchData() {
     if (!sessionActive) return;
     
-    // PERUBAHAN: Gunakan "client" untuk memanggil database
     const { data, error } = await client
         .from('smart_garden')
         .select('*')
